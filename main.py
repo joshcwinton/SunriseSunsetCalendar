@@ -9,6 +9,7 @@ This script fetches sunrise and sunset data from the API here:
 import requests
 from datetime import datetime
 from dateutil import tz
+from ics import Calendar, Event
 
 __author__ = "Josh Winton"
 __version__ = "0.1.0"
@@ -36,9 +37,24 @@ def convertToLocal(time: str):
     to_zone = tz.gettz('America/New_York')
     utc = datetime.fromisoformat(time)
     utc = utc.replace(tzinfo=from_zone)
-    local = utc.astimezone(to_zone).strftime("%X")
+    local = utc.astimezone(to_zone)
     return(local)
 
+def createCalendarEvent(sunrise: str, sunset: str):
+    c = Calendar()
+
+    sunrise_event = Event()
+    sunrise_event.name = f"☀️ {sunrise.strftime('%I')}:{sunrise.strftime('%M')}"
+    sunrise_event.begin = sunrise
+    c.events.add(sunrise_event)
+
+    sunset_event = Event()
+    sunset_event.name = f"🌙 {sunset.strftime('%I')}:{sunset.strftime('%M')}"
+    sunset_event.begin = sunset
+    c.events.add(sunset_event)
+
+    with open('my.ics', 'w') as f:
+        f.write(str(c))
 
 def main():
     """ Main entry point of the app """
@@ -48,13 +64,16 @@ def main():
     print(f"\tLatitude:\t{latitude}")
     print(f"\tLongitude:\t{longitude}")
 
+    # Fetch sunrise/sunset data 
     print("Getting data...")
     sunrise, sunset = getSunriseSunsetData(latitude, longitude)
     local_sunrise = convertToLocal(sunrise)
     local_sunset = convertToLocal(sunset)
-    print(f"\tLocal Sunrise:\t{local_sunrise}")
-    print(f"\tLocal Sunset: \t{local_sunset}")
+    print(f"\tLocal Sunrise:\t{local_sunrise.strftime('%X')}")
+    print(f"\tLocal Sunset: \t{local_sunset.strftime('%X')}")
 
+    # Create calendar event
+    createCalendarEvent(local_sunrise, local_sunset)
 
 if __name__ == "__main__":
     """ This is executed when run from the command line """
