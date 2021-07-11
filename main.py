@@ -10,6 +10,8 @@ import requests
 from datetime import datetime
 from dateutil import tz
 from ics import Calendar, Event
+import time
+import progressbar
 
 __author__ = "Josh Winton"
 __version__ = "0.1.0"
@@ -18,12 +20,14 @@ __license__ = "MIT"
 # Constants for making API request
 latitude = 40.6302887
 longitude = -73.9029366
+daysAhead = 10
+timeZone = 'America/New_York'
+writefile = 'sunrise-sunset.ics'
 
-
-def getSunriseSunsetData(latitude: str, longitude: str):
+def getSunriseSunsetData(latitude: str, longitude: str, daysFromNow: int):
     """Fetches data from sunrise-sunset API."""
     # Send request to API for lat and long unformatted
-    r = requests.get("https://api.sunrise-sunset.org/json", params={'lat': latitude, 'lng': longitude, 'formatted': 0})
+    r = requests.get("https://api.sunrise-sunset.org/json", params={'lat': latitude, 'lng': longitude, 'formatted': 0, 'date': f"{daysFromNow} days"})
     # Extract sunrise and sunset from result
     utc_sunrise = r.json()['results']['sunrise']
     utc_sunset = r.json()['results']['sunset']
@@ -34,46 +38,45 @@ def getSunriseSunsetData(latitude: str, longitude: str):
 def convertToLocal(time: str):
     """Converts an ISO format UTC time to a local time."""
     from_zone = tz.gettz('UTC')
-    to_zone = tz.gettz('America/New_York')
+    to_zone = tz.gettz(timeZone)
     utc = datetime.fromisoformat(time)
     utc = utc.replace(tzinfo=from_zone)
     local = utc.astimezone(to_zone)
     return(local)
 
-def createCalendarEvent(sunrise: str, sunset: str):
-    c = Calendar()
-
+def createCalendarEvent(calendar, sunrise: str, sunset: str):
+    """Generates and adds a sunrise and sunset event to `calendar`."""
     sunrise_event = Event()
     sunrise_event.name = f"☀️ {sunrise.strftime('%I')}:{sunrise.strftime('%M')}"
     sunrise_event.begin = sunrise
-    c.events.add(sunrise_event)
+    calendar.events.add(sunrise_event)
 
     sunset_event = Event()
     sunset_event.name = f"🌙 {sunset.strftime('%I')}:{sunset.strftime('%M')}"
     sunset_event.begin = sunset
-    c.events.add(sunset_event)
-
-    with open('my.ics', 'w') as f:
-        f.write(str(c))
+    calendar.events.add(sunset_event)
 
 def main():
     """ Main entry point of the app """
-    print(f"Sunrise Sunset Calendar v{__version__}")
+    print(f"Sunrise Sunset Calendar v{__version__}\n")
     # TODO: Take zip code as a command line argument and look up lat long
     print("Location:")
     print(f"\tLatitude:\t{latitude}")
     print(f"\tLongitude:\t{longitude}")
 
-    # Fetch sunrise/sunset data 
     print("Getting data...")
-    sunrise, sunset = getSunriseSunsetData(latitude, longitude)
-    local_sunrise = convertToLocal(sunrise)
-    local_sunset = convertToLocal(sunset)
-    print(f"\tLocal Sunrise:\t{local_sunrise.strftime('%X')}")
-    print(f"\tLocal Sunset: \t{local_sunset.strftime('%X')}")
+    c = Calendar() # Calendar object to store all events
 
-    # Create calendar event
-    createCalendarEvent(local_sunrise, local_sunset)
+    for i in progressbar.progressbar(range(daysAhead)):
+        time.sleep(1) # Wait between requests to avoid usage limit
+        utc_sunrise, utc_sunset = getSunriseSunsetData(latitude, longitude, i)
+        local_sunrise = convertToLocal(utc_sunrise)
+        local_sunset = convertToLocal(utc_sunset)
+        createCalendarEvent(c, local_sunrise, local_sunset) 
+
+
+    with open(writefile, 'w') as f:
+        f.write(str(c))
 
 if __name__ == "__main__":
     """ This is executed when run from the command line """
