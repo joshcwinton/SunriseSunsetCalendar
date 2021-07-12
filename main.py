@@ -6,12 +6,14 @@ This script fetches sunrise and sunset data from the API here:
  https://api.sunrise-sunset.org/json. It then uses that data to create an
  iCal file that displays the time of sunrise and sunset everyday.
 """
+from io import IncrementalNewlineDecoder
 import requests
 from datetime import datetime
 from dateutil import tz
 from ics import Calendar, Event
 import time
 import progressbar
+from pyzipcode import ZipCodeDatabase
 
 __author__ = "Josh Winton"
 __version__ = "0.1.0"
@@ -21,16 +23,23 @@ __license__ = "MIT"
 LATITUDE = 40.6302887
 LONGITUDE = -73.9029366
 DAYS_AHEAD = 10
-# TIME_ZONE = 'America/New_York'
-WRITE_FILE = 'sunrise-sunset.ics'
 
-
-def getSunriseSunsetDataZip(zip: str, daysFromNow: int):
-    return 0
-    """"""
+def getLatLongFromZip(zip: IncrementalNewlineDecoder):
+    """Converts Zip code to latitude and longitude.
+    
+    Args:
+        zip: Zip code to convert.
+        
+    Returns:
+        Tuple containing latitude and longitude in degrees"""
     # Convert zip to lat long
-    # Convert zip to time zone
+    zcdb = ZipCodeDatabase()
+    zip_info = zcdb[zip]
+    lat = zip_info.latitude
+    long = zip_info.longitude
+
     # Call lat long function
+    return (lat, long)
 
 def getSunriseSunsetDataLatLong(latitude: str, longitude: str, daysFromNow: int = 0):
     """Fetches data from sunrise-sunset API.
@@ -43,7 +52,7 @@ def getSunriseSunsetDataLatLong(latitude: str, longitude: str, daysFromNow: int 
         daysFromNow: Specify fetching data for a date N days in the future. 
 
     Returns:
-        Tuple containing sunrise and sunset in ISO format
+        Tuple containing sunrise and sunset in ISO format.
     """
     # Send request to API for lat and long unformatted, daysFromNow days into the future
     r = requests.get("https://api.sunrise-sunset.org/json", params={'lat': latitude, 'lng': longitude, 'formatted': 0, 'date': f"{daysFromNow} days"})
@@ -62,10 +71,10 @@ def convertTimeToLocal(time: str):
         time: UTC time to be converted in ISO format.
         
     Returns:
-        The time in local time based on PSIX TZ variable.
+        The time in local time based on POSIX TZ variable.
     """
     from_zone = tz.gettz('UTC')
-    to_zone = tz.gettz()
+    to_zone = tz.gettz() # May want to get local time for lat long in the future
     utc = datetime.fromisoformat(time)
     utc = utc.replace(tzinfo=from_zone)
     local = utc.astimezone(to_zone)
@@ -106,7 +115,7 @@ def generateCalendarFile(latitude: str, longitude: str, filename: str, daysAhead
     calendar = Calendar() 
 
     for i in progressbar.progressbar(range(daysAhead)):
-        time.sleep(1) # Wait between requests to avoid API usage limit
+        time.sleep(0.2) # Wait between requests to avoid API usage limit
         utc_sunrise, utc_sunset = getSunriseSunsetDataLatLong(latitude, longitude, i)
         local_sunrise = convertTimeToLocal(utc_sunrise)
         local_sunset = convertTimeToLocal(utc_sunset)
@@ -120,13 +129,14 @@ def generateCalendarFile(latitude: str, longitude: str, filename: str, daysAhead
 def main():
     """ Main entry point of the app """
     print(f"Sunrise Sunset Calendar v{__version__}\n")
-    # TODO: Take zip code as a command line argument and look up lat long
-    print("Location:")
-    print(f"\tLatitude:\t{LATITUDE}")
-    print(f"\tLongitude:\t{LONGITUDE}")
-
+    zip = input("Enter your ZIP code: ")
+    filename = input("Enter filename to save to (default 'sunrise-sunset.ics'): ")
+    if filename == "":
+        filename = "sunrise-sunset.ics"
     print("Getting data...")
-    generateCalendarFile(LATITUDE, LONGITUDE, WRITE_FILE)
+    lat, long = getLatLongFromZip(int(zip))
+    generateCalendarFile(lat, long, filename)
+    print(f"Calendar file saved to {filename}.")
 
 if __name__ == "__main__":
     """ This is executed when run from the command line """

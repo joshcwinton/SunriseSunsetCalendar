@@ -3,7 +3,10 @@ certifi==2021.5.30
 chardet==4.0.0
 ics==0.7
 idna==2.10
+progressbar2==3.53.1
 python-dateutil==2.8.1
+python-utils==2.5.6
+pyzipcode==3.0.1
 requests==2.25.1
 six==1.16.0
 TatSu==5.6.1
