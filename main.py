@@ -19,11 +19,6 @@ __author__ = "Josh Winton"
 __version__ = "0.1.0"
 __license__ = "MIT"
 
-# Constants for making API request
-LATITUDE = 40.6302887
-LONGITUDE = -73.9029366
-DAYS_AHEAD = 10
-
 def getLatLongFromZip(zip: IncrementalNewlineDecoder):
     """Converts Zip code to latitude and longitude.
     
